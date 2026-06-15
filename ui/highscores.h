@@ -1,18 +1,16 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <cstdint>   // pour int32_t
-#include "core/persist.h"
+#include <cstdint>
 
 struct HighscoreEntry {
-    char name[9];       // 8 caractères + '\0'
-    int32_t score;      // taille garantie 32 bits
+    char    name[9];
+    int32_t score;
 };
 
 constexpr int MAX_SCORES = 6;
 
 void highscores_init();
-std::vector<HighscoreEntry> highscores_load();
-std::string highscores_input_name();
+void highscores_refresh();        // relit la SD dans le cache (une fois à l'entrée de l'écran)
 void highscores_submit(int32_t score);
-void highscores_show();
+void highscores_show();           // rendu depuis cache, PAS de gfx_flush()
