@@ -1,62 +1,78 @@
-	#pragma once
+#pragma once
 
-	// Dimensions de l’écran
-	constexpr int SCREEN_W = 320;
-	constexpr int SCREEN_H = 240;
+/*
+============================================================
+  config.h — Constantes globales du jeu (Pacman / Gamebuino AKA)
+------------------------------------------------------------
+  Toutes les constantes du projet centralisées ici.
+  Utilisation de constexpr partout (pas de #define sauf debug).
+============================================================
+*/
 
-	// Dimensions du labyrinthe
-	constexpr int TILE_SIZE = 16;          // chaque case du labyrinthe
-	constexpr int MAZE_COLS = SCREEN_W / TILE_SIZE;   // 20 colonnes
-	constexpr int MAZE_ROWS = SCREEN_H / TILE_SIZE;   // 15 lignes
-	
-	// Donner d'alignement de la grille / déplacement dans la grille
-	constexpr int GRID_X0 = 0;      // origine X de la grille (pixels)
-	constexpr int GRID_Y0 = 0;      // origine Y de la grille (pixels)
-	constexpr int CENTER_EPS = 2;   // tolérance d’alignement au centre (pixels)
-	constexpr int SNAP_EPS   = 3;   // distance sous laquelle on "snap" au centre
+// ---------------------------------------------------------------------------
+//  ÉCRAN
+// ---------------------------------------------------------------------------
+constexpr int SCREEN_W = 320;
+constexpr int SCREEN_H = 240;
 
-	// Pacman
-	constexpr int PACMAN_SIZE = 14;        	 // sprite ~ taille d’une tile
-	constexpr int PACMAN_SPEED = 3;  		 // vitesse de déplacement (pixels/frame)
-	constexpr int PACMAN_OFFSET = (TILE_SIZE - PACMAN_SIZE) / 2;
-	
+// ---------------------------------------------------------------------------
+//  GRILLE / LABYRINTHE
+// ---------------------------------------------------------------------------
+constexpr int TILE_SIZE  = 16;
+constexpr int MAZE_COLS  = SCREEN_W / TILE_SIZE;   // 20 colonnes
+constexpr int MAZE_ROWS  = SCREEN_H / TILE_SIZE;   // 15 lignes
 
-	// Fantômes
-	constexpr int GHOST_SIZE = 14;
-	constexpr int GHOST_OFFSET  = (TILE_SIZE - GHOST_SIZE) / 2;
-	constexpr int NUM_GHOSTS = 4;          // classique: Blinky, Pinky, Inky, Clyde
-	
-	#define FRIGHTENED_DURATION_TICKS 360      // exemple : 6 secondes
-	#define FRIGHTENED_BLINK_START_TICKS 120   // exemple : clignotement sur les 2 dernières secondes
-	
-	// Temps entre les sorties des fantômes (en ticks)
-	static const int GHOST_RELEASE_INTERVAL_TICKS = 3 * 60; // 3 secondes
+constexpr int GRID_X0    = 0;   // origine X de la grille (pixels)
+constexpr int GRID_Y0    = 0;   // origine Y de la grille (pixels)
+constexpr int CENTER_EPS = 2;   // tolérance d'alignement au centre (px)
+constexpr int SNAP_EPS   = 3;   // distance sous laquelle on "snap" au centre
 
-	// Temps avant la première sortie
-	static const int FIRST_GHOST_RELEASE_TICKS = 5 * 60; // 5 secondes
+// ---------------------------------------------------------------------------
+//  PAC-MAN
+// ---------------------------------------------------------------------------
+constexpr int PACMAN_SIZE   = 14;
+constexpr int PACMAN_SPEED  = 3;   // pixels / frame
+constexpr int PACMAN_OFFSET = (TILE_SIZE - PACMAN_SIZE) / 2;
 
-	// Points et bonus
-	constexpr int DOT_SCORE = 10;          // pac-gum
-	constexpr int POWERDOT_SCORE = 50;     // super pac-gum
-	constexpr int GHOST_SCORE = 200;       // fantôme mangé
-	constexpr int FRUIT_SCORE = 500;       // bonus fruit
+// Joystick — JOYX_MID et seuils sont déjà définis dans lib/common.h
 
-	// Mode debug
-	extern int debug;   // 0 = off, 1 = on
-	
-	// -----------------------------------------------------------------------------
-	// Vitesses arcade-faithful (pixels par frame)
-	// -----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+//  FANTÔMES
+// ---------------------------------------------------------------------------
+constexpr int GHOST_SIZE   = 14;
+constexpr int GHOST_OFFSET = (TILE_SIZE - GHOST_SIZE) / 2;
+constexpr int NUM_GHOSTS   = 4;   // Blinky, Pinky, Inky, Clyde
 
-	// Vitesse normale des fantômes (Scatter/Chase)
-	#define GHOST_SPEED             2   // base
+// Vitesses (pixels / frame)
+constexpr int GHOST_SPEED            = 2;   // normal (Scatter / Chase)
+constexpr int GHOST_SPEED_TUNNEL     = 1;   // dans les tunnels (~40 % arcade)
+constexpr int GHOST_SPEED_FRIGHTENED = 1;   // mode Frightened (~50 % arcade)
+constexpr int GHOST_SPEED_EYES       = 4;   // yeux, retour maison
 
-	// Vitesse des fantômes dans les tunnels (≈ 40% arcade)
-	#define GHOST_SPEED_TUNNEL      1
+// Timings sortie de la ghost house
+constexpr int GHOST_RELEASE_INTERVAL_TICKS = 3 * 60;   // 3 s
+constexpr int FIRST_GHOST_RELEASE_TICKS    = 5 * 60;   // 5 s
 
-	// Vitesse des fantômes en mode Frightened (≈ 50% arcade)
-	#define GHOST_SPEED_FRIGHTENED  1
+// Mode Frightened
+constexpr int FRIGHTENED_DURATION_TICKS    = 360;   // 6 s
+constexpr int FRIGHTENED_BLINK_START_TICKS = 120;   // clignotement sur les 2 dernières s
 
-	// Vitesse des yeux (Eaten) — plus rapide que normal
-	#define GHOST_SPEED_EYES        4
+// ---------------------------------------------------------------------------
+//  SCORES
+// ---------------------------------------------------------------------------
+constexpr int DOT_SCORE       = 10;
+constexpr int POWERDOT_SCORE  = 50;
+constexpr int GHOST_SCORE     = 200;   // doublé à chaque chaîne (200, 400…)
+constexpr int FRUIT_SCORE     = 500;
 
+// ---------------------------------------------------------------------------
+//  COLLISION
+// ---------------------------------------------------------------------------
+constexpr int COLLISION_RADIUS = 12;   // rayon carré pour détection Pac-Man / fantôme
+
+// ---------------------------------------------------------------------------
+//  MODE DEBUG
+// ---------------------------------------------------------------------------
+extern int debug;   // 0 = off, 1 = on
+
+#define DBG(code) do { if (debug) { code; } } while(0)

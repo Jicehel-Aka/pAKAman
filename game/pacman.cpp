@@ -36,7 +36,9 @@ extern float g_camera_y;
 extern int   debug;
 char debugText[64];
 
+#ifndef DBG
 #define DBG(code) do { if (debug) { code; } } while (0)
+#endif
 
 /*
 ============================================================

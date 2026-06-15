@@ -1,110 +1,111 @@
+/*
+============================================================
+  persist.cpp — Persistance SD card (/sdcard/PAKAMAN/)
+------------------------------------------------------------
+  1. Highscores  : binaire { char name[9] + int32_t score }
+  2. AudioSettings : texte clé=valeur
+------------------------------------------------------------
+  Garantit la création du répertoire PAKAMAN à l'init.
+============================================================
+*/
+
 #include "persist.h"
-#include "nvs_flash.h"
-#include "nvs.h"
-#include <cstring>
-#include <cstdio>
 #include "core/audio.h"
+#include <cstdio>
+#include <cstring>
+#include <vector>
+#include <sys/stat.h>   // mkdir
 
-static const char* NVS_NAMESPACE = "storage";
-static const char* NVS_KEY = "highscores";
-static const char* SETTINGS_PATH = "/sdcard/PAKAMAN/settings.cfg";
+static constexpr const char* PAKAMAN_DIR    = "/sdcard/PAKAMAN";
+static constexpr const char* SETTINGS_PATH  = "/sdcard/PAKAMAN/settings.cfg";
+static constexpr const char* SCORES_PATH    = "/sdcard/PAKAMAN/highscores.dat";
 
-void persist_load(std::vector<HighScore>& scores) {
+// ---------------------------------------------------------------------------
+//  Assure l'existence du répertoire (appelé avant tout fopen en écriture)
+// ---------------------------------------------------------------------------
+static void ensure_dir()
+{
+    struct stat st;
+    if (stat(PAKAMAN_DIR, &st) != 0)
+        mkdir(PAKAMAN_DIR, 0755);
+}
+
+// ===========================================================================
+//  HIGHSCORES
+// ===========================================================================
+
+void persist_load(std::vector<HighScore>& scores)
+{
     scores.clear();
 
-    nvs_handle_t handle;
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
-    if (err != ESP_OK) {
-        printf("NVS open failed: %s\n", esp_err_to_name(err));
+    FILE* f = fopen(SCORES_PATH, "rb");
+    if (!f) return;   // fichier absent = pas encore de scores, silencieux
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (size <= 0 || size % (long)sizeof(HighScore) != 0) {
+        printf("[persist] highscores.dat corrompu (%ld octets)\n", size);
+        fclose(f);
         return;
     }
 
-    size_t required_size = 0;
-    err = nvs_get_blob(handle, NVS_KEY, NULL, &required_size);
-    if (err == ESP_ERR_NVS_NOT_FOUND) {
-        nvs_close(handle);
-        return; // rien stocké
-    }
-
-    std::vector<uint8_t> buffer(required_size);
-    err = nvs_get_blob(handle, NVS_KEY, buffer.data(), &required_size);
-    if (err == ESP_OK) {
-        // décoder le blob en HighScore
-        size_t count = required_size / sizeof(HighScore);
-        scores.resize(count);
-        memcpy(scores.data(), buffer.data(), required_size);
-    }
-
-    nvs_close(handle);
+    scores.resize((size_t)(size / sizeof(HighScore)));
+    fread(scores.data(), sizeof(HighScore), scores.size(), f);
+    fclose(f);
 }
 
-void persist_save(const std::vector<HighScore>& scores) {
-    nvs_handle_t handle;
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) {
-        printf("NVS open failed: %s\n", esp_err_to_name(err));
+void persist_save(const std::vector<HighScore>& scores)
+{
+    ensure_dir();
+
+    FILE* f = fopen(SCORES_PATH, "wb");
+    if (!f) {
+        printf("[persist] Impossible d'écrire %s\n", SCORES_PATH);
         return;
     }
 
-    size_t size = scores.size() * sizeof(HighScore);
-    err = nvs_set_blob(handle, NVS_KEY, scores.data(), size);
-    if (err != ESP_OK) {
-        printf("NVS set_blob failed: %s\n", esp_err_to_name(err));
-    }
-
-    err = nvs_commit(handle);
-    if (err != ESP_OK) {
-        printf("NVS commit failed: %s\n", esp_err_to_name(err));
-    }
-
-    nvs_close(handle);
+    fwrite(scores.data(), sizeof(HighScore), scores.size(), f);
+    fclose(f);
 }
 
+// ===========================================================================
+//  RÉGLAGES AUDIO
+// ===========================================================================
 
-// ------------------------------------------------------------
-// Charger les réglages audio depuis la carte SD
-// ------------------------------------------------------------
 bool audio_settings_load()
 {
     FILE* f = fopen(SETTINGS_PATH, "r");
-    if (!f)
-        return false; // fichier absent → valeurs par défaut
+    if (!f) return false;
 
-    char key[64];
-    char value[64];
-
+    char key[64], value[64];
     while (fscanf(f, "%63[^=]=%63s\n", key, value) == 2)
     {
-        if (strcmp(key, "music_enabled") == 0)
-            g_audio_settings.music_enabled = (atoi(value) != 0);
-
-        else if (strcmp(key, "music_volume") == 0)
-            g_audio_settings.music_volume = atoi(value);
-
-        else if (strcmp(key, "sfx_volume") == 0)
-            g_audio_settings.sfx_volume = atoi(value);
-
-        else if (strcmp(key, "master_volume") == 0)
-            g_audio_settings.master_volume = atoi(value);
+        if      (strcmp(key, "music_enabled")  == 0) g_audio_settings.music_enabled  = atoi(value);
+        else if (strcmp(key, "music_volume")   == 0) g_audio_settings.music_volume   = atoi(value);
+        else if (strcmp(key, "sfx_volume")     == 0) g_audio_settings.sfx_volume     = atoi(value);
+        else if (strcmp(key, "master_volume")  == 0) g_audio_settings.master_volume  = atoi(value);
     }
 
     fclose(f);
     return true;
 }
 
-// ------------------------------------------------------------
-// Sauvegarder les réglages audio sur la carte SD
-// ------------------------------------------------------------
 bool audio_settings_save()
 {
-    FILE* f = fopen(SETTINGS_PATH, "w");
-    if (!f)
-        return false;
+    ensure_dir();
 
-    fprintf(f, "music_enabled=%d\n", g_audio_settings.music_enabled ? 1 : 0);
-    fprintf(f, "music_volume=%d\n",  g_audio_settings.music_volume);
-    fprintf(f, "sfx_volume=%d\n",    g_audio_settings.sfx_volume);
-    fprintf(f, "master_volume=%d\n", g_audio_settings.master_volume);
+    FILE* f = fopen(SETTINGS_PATH, "w");
+    if (!f) {
+        printf("[persist] Impossible d'écrire %s\n", SETTINGS_PATH);
+        return false;
+    }
+
+    fprintf(f, "music_enabled=%d\n",  g_audio_settings.music_enabled);
+    fprintf(f, "music_volume=%d\n",   g_audio_settings.music_volume);
+    fprintf(f, "sfx_volume=%d\n",     g_audio_settings.sfx_volume);
+    fprintf(f, "master_volume=%d\n",  g_audio_settings.master_volume);
 
     fclose(f);
     return true;

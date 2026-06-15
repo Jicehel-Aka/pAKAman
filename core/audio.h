@@ -20,7 +20,7 @@ extern "C" {
 #define GB_AUDIO_SAMPLE_RATE            22050
 
 // -----------------------------------------------------------------------------
-// Configuration des réglages de volumr
+// Configuration des réglages de volume
 // -----------------------------------------------------------------------------
 
 struct AudioSettings {
