@@ -1,1 +1,0 @@
-PCM 16 bits mono 44100 Hz	
