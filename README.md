@@ -1,4 +1,4 @@
-# pAKAman — refonte sur l'architecture composant (AKAsseBricks)
+# pAKAman 
 
 Portage de pAKAman sur la même architecture que **AKAsseBricks** :
 composant matériel ESP-IDF `components/gamebuino/` + couche `main/core/` propre
@@ -87,21 +87,8 @@ pAKAman/
    │  └─ highscores.{h,cpp}       (/sdcard/PAKAMAN/SCORES.DAT)
    ├─ game/                       (logique Pac-Man — conservée)
    └─ assets/                     (sprites BGR565, pacman_pmf, image titre)
+
 ```
-
----
-
-## Points à vérifier sur la cible (je n'ai pas pu compiler ici)
-
-1. **Sens vertical du joystick.** Si HAUT/BAS sont inversés en jeu, inverser le
-   signe de `get_y()` dans `core/input.cpp` (une seule ligne, commentée sur place).
-2. **Musique PMF.** `gb_audio_track_pmf` lit à `GB_AUDIO_SAMPLE_RATE` (44100 dans
-   `gb_common.h`) — le paramètre `rate` passé par le jeu à `audioPMF.start()` est
-   ignoré (comportement voulu).
-3. **Budget des 4 voix.** 3 SFX + 1 musique = 4 (plein). Ne pas ajouter d'autre
-   piste sans en libérer une.
-4. **Loader.** `esp_partition_find_first(...OTA_1...)` cible la partition du loader
-   de la console AKA (même convention que tes autres jeux).
 
 ## Restaurer les sons WAV d'origine (optionnel)
 
