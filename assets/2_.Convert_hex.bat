@@ -1,1 +1,0 @@
-xxd -i pacman.pmf > pacman_pmf.h
