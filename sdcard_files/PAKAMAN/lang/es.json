@@ -1,0 +1,22 @@
+{
+  "TITLE_PRESS_A": "Pulsa A para jugar",
+  "MENU_PLAY": "Jugar",
+  "MENU_MUSIC": "Musica",
+  "MENU_VOLUME": "Volumen",
+  "MENU_SCORES": "Puntos",
+  "SCORES_TITLE": "Mejores puntos",
+  "SCORES_EMPTY": "Sin puntos",
+  "MENU_RECALIBRATE": "Calibrar mando",
+  "MENU_SCREENSHOT": "Captura",
+  "COMMON_BACK": "B: atras",
+  "COMMON_ON": "SI",
+  "COMMON_OFF": "NO",
+  "GAME_READY": "READY!",
+  "GAME_OVER": "Game Over",
+  "GAME_RETRY": "A: reintentar",
+  "GAME_PAUSE": "Pausa",
+  "GAME_RESUME_HINT": "A: seguir",
+  "GAME_QUIT": "Salir del juego",
+  "MENU_SHOT_SAVED": "Captura guardada",
+  "LANG_NAME": "Espanol"
+}

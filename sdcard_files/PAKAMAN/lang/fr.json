@@ -1,0 +1,22 @@
+{
+  "TITLE_PRESS_A": "Appuyez sur A pour jouer",
+  "MENU_PLAY": "Jouer",
+  "MENU_MUSIC": "Musique",
+  "MENU_VOLUME": "Volume",
+  "MENU_SCORES": "Scores",
+  "SCORES_TITLE": "Meilleurs scores",
+  "SCORES_EMPTY": "Aucun score",
+  "MENU_RECALIBRATE": "Recalibrer le stick",
+  "MENU_SCREENSHOT": "Capture d'ecran",
+  "COMMON_BACK": "B : retour",
+  "COMMON_ON": "ON",
+  "COMMON_OFF": "OFF",
+  "GAME_READY": "READY!",
+  "GAME_OVER": "Game Over",
+  "GAME_RETRY": "A : rejouer",
+  "GAME_PAUSE": "Pause",
+  "GAME_RESUME_HINT": "A : reprendre",
+  "GAME_QUIT": "Quitter la partie",
+  "MENU_SHOT_SAVED": "Capture enregistree",
+  "LANG_NAME": "Francais"
+}

@@ -1,0 +1,22 @@
+{
+  "TITLE_PRESS_A": "Press A to play",
+  "MENU_PLAY": "Play",
+  "MENU_MUSIC": "Music",
+  "MENU_VOLUME": "Volume",
+  "MENU_SCORES": "Scores",
+  "SCORES_TITLE": "High scores",
+  "SCORES_EMPTY": "No score yet",
+  "MENU_RECALIBRATE": "Recalibrate stick",
+  "MENU_SCREENSHOT": "Screenshot",
+  "COMMON_BACK": "B: back",
+  "COMMON_ON": "ON",
+  "COMMON_OFF": "OFF",
+  "GAME_READY": "READY!",
+  "GAME_OVER": "Game Over",
+  "GAME_RETRY": "A: play again",
+  "GAME_PAUSE": "Pause",
+  "GAME_RESUME_HINT": "A: resume",
+  "GAME_QUIT": "Quit game",
+  "MENU_SHOT_SAVED": "Screenshot saved",
+  "LANG_NAME": "English"
+}

@@ -1,0 +1,2 @@
+Bits rate: 44100
+Mono

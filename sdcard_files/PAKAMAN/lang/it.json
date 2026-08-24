@@ -1,0 +1,22 @@
+{
+  "TITLE_PRESS_A": "Premi A per giocare",
+  "MENU_PLAY": "Gioca",
+  "MENU_MUSIC": "Musica",
+  "MENU_VOLUME": "Volume",
+  "MENU_SCORES": "Punteggi",
+  "SCORES_TITLE": "Migliori punti",
+  "SCORES_EMPTY": "Nessun punteggio",
+  "MENU_RECALIBRATE": "Calibra stick",
+  "MENU_SCREENSHOT": "Schermata",
+  "COMMON_BACK": "B: indietro",
+  "COMMON_ON": "ON",
+  "COMMON_OFF": "OFF",
+  "GAME_READY": "READY!",
+  "GAME_OVER": "Game Over",
+  "GAME_RETRY": "A: rigioca",
+  "GAME_PAUSE": "Pausa",
+  "GAME_RESUME_HINT": "A: riprendi",
+  "GAME_QUIT": "Esci dalla partita",
+  "MENU_SHOT_SAVED": "Schermata salvata",
+  "LANG_NAME": "Italiano"
+}

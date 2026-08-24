@@ -1,0 +1,22 @@
+{
+  "TITLE_PRESS_A": "A druecken zum Spielen",
+  "MENU_PLAY": "Spielen",
+  "MENU_MUSIC": "Musik",
+  "MENU_VOLUME": "Lautstaerke",
+  "MENU_SCORES": "Punkte",
+  "SCORES_TITLE": "Bestenliste",
+  "SCORES_EMPTY": "Kein Ergebnis",
+  "MENU_RECALIBRATE": "Stick kalibrieren",
+  "MENU_SCREENSHOT": "Screenshot",
+  "COMMON_BACK": "B: zurueck",
+  "COMMON_ON": "AN",
+  "COMMON_OFF": "AUS",
+  "GAME_READY": "READY!",
+  "GAME_OVER": "Game Over",
+  "GAME_RETRY": "A: nochmal",
+  "GAME_PAUSE": "Pause",
+  "GAME_RESUME_HINT": "A: weiter",
+  "GAME_QUIT": "Spiel beenden",
+  "MENU_SHOT_SAVED": "Screenshot gespeichert",
+  "LANG_NAME": "Deutsch"
+}
