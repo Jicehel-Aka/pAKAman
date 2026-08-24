@@ -1,7 +1,9 @@
 /*
   core/sdcard.h — Petit wrapper SD au-dessus du composant gamebuino.
-  Le composant n'expose que l'init (gb_ll_sd_init). mkdir/exists sont faits en
-  POSIX : la carte est montee sur /sdcard (MOUNT_POINT du SDK).
+  Le composant expose desormais gb_ll_sd_init() (appele par g_core.init(),
+  ne pas le rappeler ici) et gb_ll_sd_is_mounted() pour lire l'etat reel du
+  montage. mkdir/exists restent faits en POSIX : la carte est montee sur
+  /sdcard (MOUNT_POINT du SDK).
 */
 #pragma once
 #include <stdbool.h>

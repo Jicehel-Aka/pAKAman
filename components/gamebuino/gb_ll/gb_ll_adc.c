@@ -20,6 +20,7 @@ Authors:
  - Jean-Marie Papillon
 */
 #include "gb_common.h"
+#include "gb_err.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
@@ -102,20 +103,20 @@ static bool adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_att
 int gb_ll_adc_init()
 {
     esp_err_t ret = adc_oneshot_new_unit(&init_config1, &adc1_handle);
-    printf( "adc_oneshot_new_unit return %d\n", ret );
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "adc_oneshot_new_unit failed %s -> GB_ERR_IO", esp_err_to_name(ret));
+        return GB_ERR_IO;
+    }
 
-        //-------------ADC1 Config---------------//
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC1_CHANNEL_BATTERY, &config));
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC1_CHANNEL_JOYX, &config));
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC1_CHANNEL_JOYY, &config));
 
     bool do_calibration1_chan0 = adc_calibration_init( ADC_UNIT_1, ADC1_CHANNEL_BATTERY, ADC_ATTEN_DB_12, &adc1_cali_chan0_handle);
-    bool do_calibration1_chan1 = adc_calibration_init( ADC_UNIT_1, ADC1_CHANNEL_JOYX, ADC_ATTEN_DB_12, &adc1_cali_chan1_handle);    
-    bool do_calibration1_chan2 = adc_calibration_init( ADC_UNIT_1, ADC1_CHANNEL_JOYY, ADC_ATTEN_DB_12, &adc1_cali_chan2_handle);    
-    printf( "ADC calibration ch0 return %s\n", do_calibration1_chan0?"Success":"Fail" );
-    printf( "ADC calibration ch1 return %s\n", do_calibration1_chan1?"Success":"Fail" );
-    printf( "ADC calibration ch2 return %s\n", do_calibration1_chan2?"Success":"Fail" );
-    return 0;
+    bool do_calibration1_chan1 = adc_calibration_init( ADC_UNIT_1, ADC1_CHANNEL_JOYX, ADC_ATTEN_DB_12, &adc1_cali_chan1_handle);
+    bool do_calibration1_chan2 = adc_calibration_init( ADC_UNIT_1, ADC1_CHANNEL_JOYY, ADC_ATTEN_DB_12, &adc1_cali_chan2_handle);
+    ESP_LOGI(TAG, "calibration batt=%d joyx=%d joyy=%d", do_calibration1_chan0, do_calibration1_chan1, do_calibration1_chan2);
+    return GB_OK;
 }
 
     // return battery voltage as mV : 2500 ~ 4200
@@ -133,7 +134,6 @@ int gb_ll_adc_read_vbatt_percent()
 {
     int adc_raw, voltage;
     ESP_ERROR_CHECK( adc_oneshot_read(adc1_handle, ADC1_CHANNEL_BATTERY, &adc_raw) );
-    printf("RAW %d\n", adc_raw);
     adc_cali_raw_to_voltage( adc1_cali_chan0_handle, adc_raw, &voltage );
     voltage*=2; // convert to battery voltage with 1:2 divider
     if ( voltage > 4000 )

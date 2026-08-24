@@ -61,8 +61,10 @@ class gb_audio_player  {
         gb_audio_player();
         ~gb_audio_player() {};
             //! add a track type to player
+            //! @return GB_OK, GB_ERR_PARAM (null), GB_ERR_NO_SPACE (4 slots full)
         int add_track( gb_audio_track_base* track, float f32_volume = 1.0f );
             //! remove a track from player
+            //! @return GB_OK, GB_ERR_PARAM (null), GB_ERR_NOT_FOUND
         int del_track( gb_audio_track_base* track );
             //! update track objects ( generate samples )
         void pool();

@@ -21,15 +21,17 @@ Authors:
 */
 #include "gb_core.h"
 #include "freertos/FreeRTOS.h"
+#include "esp_heap_caps.h"
+#include "esp_log.h"
 #include "gb_ll_lcd.h"
 #include "gb_ll_i2c.h"
 #include "gb_ll_expander.h"
-#include "gb_ll_i2c.h"
 #include "gb_ll_audio.h"
 #include "gb_ll_adc.h"
 #include "gb_ll_sdcard.h"
 #include "gb_ll_system.h"
-#include "gb_ll_adc.h"
+
+static const char *TAG = "gb_core";
 
 
 gb_core::gb_core() {
@@ -60,15 +62,38 @@ int64_t gb_core::get_micros()
 
 
 
-void gb_core::init()
+int gb_core::init()
 {
     gb_ll_system_init();
-    gb_ll_adc_init();
-    gb_ll_i2c_init();
-    gb_ll_expander_init();
-    gb_ll_sd_init();
+
+    int err = gb_ll_adc_init();
+    if (err != GB_OK) {
+        ESP_LOGE(TAG, "adc init failed %d", err);
+        return err;
+    }
+    err = gb_ll_i2c_init();
+    if (err != GB_OK) {
+        ESP_LOGE(TAG, "i2c init failed %d", err);
+        return err;
+    }
+    err = gb_ll_expander_init();
+    if (err != GB_OK) {
+        ESP_LOGE(TAG, "expander init failed %d", err);
+        return err;
+    }
+
+    err = gb_ll_sd_init();
+    if (err != GB_OK)
+        ESP_LOGW(TAG, "SD mount failed %d (continuing without card)", err);
+
     gb_ll_lcd_init();
-    gb_ll_audio_init();
+
+    err = gb_ll_audio_init();
+    if (err != GB_OK) {
+        ESP_LOGE(TAG, "audio init failed %d", err);
+        return err;
+    }
+    return GB_OK;
 }
 
 
@@ -76,8 +101,13 @@ void gb_buttons::update()
 {
     u16_buttons_last = u16_buttons;
     u16_buttons = gb_ll_expander_read() & EXPANDER_KEY;
-    if (u16_buttons & EXPANDER_KEY_RUN)
+    if (run_power_off && (u16_buttons & EXPANDER_KEY_RUN))
         gb_ll_expander_power_off();
+}
+
+void gb_buttons::set_run_power_off(bool enable)
+{
+    run_power_off = enable;
 }
 
 uint16_t gb_buttons::state()

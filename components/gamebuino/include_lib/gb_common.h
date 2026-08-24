@@ -22,8 +22,9 @@ Authors:
 #include <stdint.h>
 #include "gb_config.h"
 #include "gb_ll_common.h"
+#include "gb_err.h"
 #pragma once
-#define BOARD_VERSION 4 // CORE V1.4
+/* BOARD_VERSION is defined once in gb_ll_common.h (included above). */
 
 
 typedef uint16_t    gb_pixel_16;// 16 bits color

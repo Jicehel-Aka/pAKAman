@@ -9,6 +9,8 @@
 #include <cstring>
 #include <cstdio>
 #include <sys/stat.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"   // vTaskDelay (cede la main pendant l'ecriture BMP)
 
 static gb_graphics g_gfx;
 uint16_t current_text_color = 0xFFFF;
@@ -32,6 +34,23 @@ void gfx_putpixel16(int x, int y, uint16_t color) {
     // Clipping ecran (les routines de sprite peuvent deborder d'un pixel).
     if ((unsigned)x >= (unsigned)SCREEN_W || (unsigned)y >= (unsigned)SCREEN_H) return;
     lcd_putpixel((uint16_t)x, (uint16_t)y, color);
+}
+
+void gfx_fill_rect(int x, int y, int w, int h, uint16_t color) {
+    for (int j = 0; j < h; ++j)
+        for (int i = 0; i < w; ++i)
+            gfx_putpixel16(x + i, y + j, color);
+}
+
+void gfx_draw_rect(int x, int y, int w, int h, uint16_t color) {
+    for (int i = 0; i < w; ++i) {
+        gfx_putpixel16(x + i, y, color);
+        gfx_putpixel16(x + i, y + h - 1, color);
+    }
+    for (int j = 0; j < h; ++j) {
+        gfx_putpixel16(x, y + j, color);
+        gfx_putpixel16(x + w - 1, y + j, color);
+    }
 }
 
 void gfx_set_text_color(uint16_t color) { current_text_color = color; }
@@ -78,13 +97,24 @@ void lcd_draw_partial_bitmap(const uint16_t* pixels,
 }
 
 // --- Capture d'ecran BMP 24 bits -> /sdcard/PAKAMAN/SHOTxxxx.BMP ---
+//
+// s_next_shot_index memorise en RAM le prochain index probablement libre :
+// sans ce cache, chaque capture rescannait depuis 0 (jusqu'a des centaines
+// de fopen() SD apres beaucoup de captures), ce qui ralentit de plus en plus
+// et peut, combine a l'ecriture BMP qui suit sans aucun vTaskDelay, retarder
+// la tache assez longtemps pour risquer le Task Watchdog (5 s, sdkconfig).
+// -1 = pas encore initialise (premier appel du boot -> un seul scan complet).
+static int s_next_shot_index = -1;
+
 bool gfx_save_screenshot_bmp(char* out_path, int out_path_size) {
     static const char* kDir = "/sdcard/PAKAMAN";   // meme dossier que scores/reglages
     mkdir(kDir, 0777);   // ok si deja present
 
     char path[64];
     int shot_num = -1;
-    for (int i = 0; i < 10000; ++i) {
+
+    int start = (s_next_shot_index >= 0) ? s_next_shot_index : 0;
+    for (int i = start; i < 10000; ++i) {
         snprintf(path, sizeof(path), "%s/SHOT%04d.BMP", kDir, i);
         FILE* test = fopen(path, "rb");
         if (!test) { shot_num = i; break; }
@@ -113,7 +143,7 @@ bool gfx_save_screenshot_bmp(char* out_path, int out_path_size) {
     header[26]=1; header[28]=24;
     header[34]=(uint8_t)data_size;       header[35]=(uint8_t)(data_size>>8);
     header[36]=(uint8_t)(data_size>>16); header[37]=(uint8_t)(data_size>>24);
-    fwrite(header, 1, 54, f);
+    bool write_ok = (fwrite(header, 1, 54, f) == 54);
 
     uint8_t row[SCREEN_W * 3 + 3] = {0};
     for (int y = H - 1; y >= 0; --y) {          // BMP : lignes bas -> haut
@@ -128,9 +158,23 @@ bool gfx_save_screenshot_bmp(char* out_path, int out_path_size) {
             row[x*3+2] = (uint8_t)((r5 * 255) / 31);
         }
         for (int p = 0; p < row_padding; ++p) row[row_bytes + p] = 0;
-        fwrite(row, 1, row_stride, f);
+        if (fwrite(row, 1, row_stride, f) != (size_t)row_stride) write_ok = false;
+
+        // Cede la main periodiquement : ecrire 240 lignes sans jamais rendre
+        // la main peut, sur SD lente, retarder la tache assez longtemps pour
+        // affamer l'idle task et declencher le Task Watchdog (5 s).
+        if ((y & 0x1F) == 0) vTaskDelay(1);
     }
     fclose(f);
+
+    if (!write_ok) {
+        printf("[SHOT] ERREUR ecriture %s (SD pleine ou retiree ?)\n", path);
+        return false;
+    }
+
+    // Ecriture reussie : le prochain appel peut reprendre juste apres, sans
+    // rescanner les slots deja occupes.
+    s_next_shot_index = shot_num + 1;
 
     if (out_path && out_path_size > 0) {
         strncpy(out_path, path, out_path_size - 1);

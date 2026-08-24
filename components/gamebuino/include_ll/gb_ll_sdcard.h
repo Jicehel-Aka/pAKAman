@@ -23,7 +23,20 @@ Authors:
 extern "C" {
 #endif
 
-void gb_ll_sd_init(void);
+#include "gb_err.h"
+#include <stdbool.h>
+
+/**
+ * Mount FAT on MOUNT_POINT ("/sdcard") via SDMMC.
+ * Never formats the card (format_if_mount_failed = false).
+ *
+ * @return GB_OK on success, GB_ERR_IO if the card/filesystem cannot be mounted,
+ *         GB_ERR_BUSY if already mounted.
+ */
+int gb_ll_sd_init(void);
+
+/** True after a successful gb_ll_sd_init(). */
+bool gb_ll_sd_is_mounted(void);
 
 #ifdef __cplusplus
 }

@@ -213,6 +213,18 @@ struct Ghost
 
     /*
     ------------------------------------------------------------
+      Sortie anticipee sur compteur de pastilles (en plus du
+      minuteur ci-dessus, qui reste le filet de securite) :
+      des que game_dots_eaten(g) atteint ce seuil, le fantome
+      peut sortir meme si releaseTime_ticks n'est pas encore
+      atteint. Valeur par niveau/fantome (cf. apply_level_difficulty
+      dans game.cpp) ; 0 = sortie immediate (Blinky/Pinky).
+    ------------------------------------------------------------
+    */
+    int dot_release_threshold = 0;
+
+    /*
+    ------------------------------------------------------------
       Constructeur
     ------------------------------------------------------------
     */

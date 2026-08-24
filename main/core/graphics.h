@@ -20,6 +20,11 @@ void gfx_init();
 void gfx_clear(uint16_t color);
 void gfx_flush();
 
+// Rectangle plein / contour — utilises par le cadre du menu systeme (meme
+// convention visuelle que les autres portages AKA : boite encadree).
+void gfx_fill_rect(int x, int y, int w, int h, uint16_t color);
+void gfx_draw_rect(int x, int y, int w, int h, uint16_t color);
+
 // Pixel unique : primitive de base des routines de sprite (core/sprite.cpp).
 void gfx_putpixel16(int x, int y, uint16_t color);
 

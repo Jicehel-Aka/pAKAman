@@ -25,7 +25,7 @@ extern "C" {
 #endif
 #include <stdint.h>
 
-    //! initialize 3 channels adc for battery and Joystick
+    //! initialize 3 ADC channels (battery + joystick). @return GB_OK or GB_ERR_IO
 int gb_ll_adc_init();
     //! return Battery voltage in mv
 int gb_ll_adc_read_vbatt_mv();

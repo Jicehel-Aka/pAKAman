@@ -21,7 +21,7 @@ extern float g_camera_y;     // defini dans game.cpp
 
 // Vitesse (px/frame) : doit diviser TILE_SIZE (16). 2 -> balade tranquille.
 static constexpr int FRUIT_SPEED       = 2;
-static constexpr int FRUIT_LIFE_TICKS  = 10 * 40;   // ~10 s a 40 FPS
+static constexpr int FRUIT_LIFE_TICKS  = SEC_TO_TICKS(10.0f);   // 10 s reelles
 static constexpr int FRUIT_SPRITE      = 14;        // taille du sprite fruit
 
 // Seuils d'apparition (gommes mangees) — fideles a l'arcade.

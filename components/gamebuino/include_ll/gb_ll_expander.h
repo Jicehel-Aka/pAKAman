@@ -26,7 +26,7 @@ extern "C" {
 
 #include "gb_common.h"
 
-    //! Initialise 16 b expander
+    //! Drive expander reset/power lines after I2C is up. @return GB_OK
 int gb_ll_expander_init();
 
 void gb_ll_expander_lcd_reset(uint8_t state);

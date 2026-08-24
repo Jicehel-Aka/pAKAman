@@ -34,9 +34,11 @@ Authors:
 #include <sys/stat.h>
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
-#include "gb_ll_audio.h"
 #include "driver/sdmmc_host.h"
 #include "gb_common.h"
+#include "gb_ll_sdcard.h"
+#include "gb_err.h"
+#include "esp_log.h"
 #if SOC_SDMMC_IO_POWER_EXTERNAL
 #include "sd_pwr_ctrl_by_on_chip_ldo.h"
 #endif
@@ -45,42 +47,32 @@ static const char *TAG = "sdcard";
 
 
 static sdmmc_card_t* card = 0;
+static bool s_sd_mounted = false;
 
-void gb_ll_sd_init(void)
+bool gb_ll_sd_is_mounted(void)
+{
+    return s_sd_mounted;
+}
+
+int gb_ll_sd_init(void)
 {
     esp_err_t ret;
 
-    // Options for mounting the filesystem.
-    // If format_if_mount_failed is set to true, SD card will be partitioned and
-    // formatted in case when mounting fails.
+    if (s_sd_mounted)
+        return GB_ERR_BUSY;
+
+    // Never format user media automatically.
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
-        .max_files = 5,
+        .max_files = 8,
         .allocation_unit_size = 16 * 1024
     };
 
-    ESP_LOGI(TAG, "Initializing SD card");
+    ESP_LOGI(TAG, "Initializing SD card (SDMMC, mount=%s)", MOUNT_POINT);
 
-    // Use settings defined above to initialize SD card and mount FAT filesystem.
-    // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
-    // Please check its source code and implement error recovery when developing
-    // production applications.
-
-    ESP_LOGI(TAG, "Using SDMMC peripheral");
-
-    // By default, SD card frequency is initialized to SDMMC_FREQ_DEFAULT (20MHz)
-    // For setting a specific frequency, use host.max_freq_khz (range 400kHz - 40MHz for SDMMC)
-    // Example: for fixed frequency of 10MHz, use host.max_freq_khz = 10000;
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-
-    // This initializes the slot without card detect (CD) and write protect (WP) signals.
-    // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-
-    // Set bus width to use:
     slot_config.width = 4;
-    // On chips where the GPIOs used for SD card can be configured, set them in
-    // the slot_config structure:
 #ifdef CONFIG_SOC_SDMMC_USE_GPIO_MATRIX
     slot_config.clk = SDCARD_PIN_CLK;
     slot_config.cmd = SDCARD_PIN_CMD;
@@ -88,33 +80,24 @@ void gb_ll_sd_init(void)
     slot_config.d1 = SDCARD_PIN_D1;
     slot_config.d2 = SDCARD_PIN_D2;
     slot_config.d3 = SDCARD_PIN_D3;
-#endif  // CONFIG_SOC_SDMMC_USE_GPIO_MATRIX
-
-    // Enable internal pullups on enabled pins. The internal pullups
-    // are insufficient however, please make sure 10k external pullups are
-    // connected on the bus. This is for debug / example purpose only.
+#endif
     slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
-    ESP_LOGI(TAG, "Mounting filesystem");
     ret = esp_vfs_fat_sdmmc_mount( MOUNT_POINT, &host, &slot_config, &mount_config, &card );
 
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount filesystem. "
-                     "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+            ESP_LOGE(TAG, "Failed to mount filesystem (GB_ERR_IO). Card will not be formatted.");
         } else {
-            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                     "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Failed to initialize the card (%s) -> GB_ERR_IO", esp_err_to_name(ret));
         }
-        return;
+        s_sd_mounted = false;
+        return GB_ERR_IO;
     }
     ESP_LOGI(TAG, "Filesystem mounted");
-
-    // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
-
-        // keep filesystem open !
-    return;
+    s_sd_mounted = true;
+    return GB_OK;
 }
 
 

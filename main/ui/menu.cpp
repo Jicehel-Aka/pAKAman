@@ -38,10 +38,41 @@ enum Item {
     IT_COUNT
 };
 
+// Geometrie de la boite du menu systeme — reprise a l'identique des autres
+// portages AKA (aka_runtime) pour une apparence coherente d'un jeu a
+// l'autre : boite 240x200 centree sur l'ecran 320x240.
+static const int BOX_X = 40, BOX_Y = 20, BOX_W = 240, BOX_H = 200;
+
+static void menu_frame(const char* title) {
+    gfx_fill_rect(BOX_X, BOX_Y, BOX_W, BOX_H, COLOR_DARKBLUE);
+    gfx_draw_rect(BOX_X, BOX_Y, BOX_W, BOX_H, COLOR_WHITE);
+    gfx_text(BOX_X + 12, BOX_Y + 8, title, COLOR_YELLOW);
+}
+
 static void return_to_loader() {
     const esp_partition_t* loader = esp_partition_find_first(
         ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, nullptr);
     if (loader) { esp_ota_set_boot_partition(loader); esp_restart(); }
+}
+
+bool confirm_return_to_loader() {
+    // Vide les fronts en cours (evite qu'un A/B deja enfonce ne soit relu).
+    for (;;) { Keys k; input_poll(k); if (!k.A && !k.B) break; vTaskDelay(pdMS_TO_TICKS(40)); }
+
+    for (;;) {
+        Keys k;
+        input_poll(k);
+
+        gfx_clear(COLOR_BLACK);
+        menu_frame(T(STR_RETURN_LOADER));
+        gfx_text(BOX_X + 12, BOX_Y + 40, "A: confirmer", COLOR_WHITE);
+        gfx_text(BOX_X + 12, BOX_Y + 60, "B: annuler",   COLOR_WHITE);
+        gfx_flush();
+
+        if (k.pressed & EXPANDER_KEY_A) return true;
+        if (k.pressed & EXPANDER_KEY_B) return false;
+        vTaskDelay(pdMS_TO_TICKS(40));
+    }
 }
 
 static void wait_release_B() {
@@ -49,25 +80,26 @@ static void wait_release_B() {
 }
 
 static void show_controls() {
-    gfx_clear(color_black);
-    gfx_text(110, 10, T(STR_CONTROLS), color_yellow);
-    gfx_text(20, 45,  "Stick / D-Pad : deplacer", color_white);
-    gfx_text(20, 68,  "A : valider / demarrer",   color_white);
-    gfx_text(20, 91,  "RUN : pause",              color_white);
-    gfx_text(20, 114, "MENU : ce menu",           color_white);
-    gfx_text(20, 137, "MENU long : capture",      color_white);
-    gfx_text(20, 160, "RUN+MENU : loader",        color_white);
-    gfx_text(20, 195, T(STR_BACK), color_yellow);
+    gfx_clear(COLOR_BLACK);
+    menu_frame(T(STR_CONTROLS));
+    int y = BOX_Y + 34;
+    gfx_text(BOX_X + 12, y, "Stick / D-Pad : deplacer", COLOR_WHITE); y += 16;
+    gfx_text(BOX_X + 12, y, "A : valider / demarrer",   COLOR_WHITE); y += 16;
+    gfx_text(BOX_X + 12, y, "RUN : pause",              COLOR_WHITE); y += 16;
+    gfx_text(BOX_X + 12, y, "MENU : ce menu",           COLOR_WHITE); y += 16;
+    gfx_text(BOX_X + 12, y, "MENU long : capture",      COLOR_WHITE); y += 16;
+    gfx_text(BOX_X + 12, y, "RUN+MENU : loader",        COLOR_WHITE); y += 24;
+    gfx_text(BOX_X + 12, y, T(STR_BACK), COLOR_YELLOW);
     gfx_flush();
     for (;;) { Keys k; input_poll(k); if (k.pressed & EXPANDER_KEY_B) break; vTaskDelay(pdMS_TO_TICKS(40)); }
 }
 
 static void draw_menu(int sel, bool in_game) {
-    gfx_clear(color_black);
-    gfx_text(130, 8, T(STR_MENU), color_yellow);
+    gfx_clear(COLOR_BLACK);
+    menu_frame(T(STR_MENU));
 
     char buf[40];
-    const int x = 40, y0 = 40, dy = 20;
+    const int x = BOX_X + 24, y0 = BOX_Y + 34, dy = 16;
 
     for (int i = 0; i < IT_COUNT; ++i) {
         const char* label = "";
@@ -88,9 +120,10 @@ static void draw_menu(int sel, bool in_game) {
             case IT_RECALIBRATE: label = T(STR_RECALIBRATE); break;
             case IT_LOADER:      label = T(STR_RETURN_LOADER); break;
         }
-        uint16_t col = (i == sel) ? color_yellow : color_white;
-        if (i == sel) gfx_text(x - 16, y0 + i * dy, ">", color_yellow);
-        gfx_text(x, y0 + i * dy, label, col);
+        int y = y0 + i * dy;
+        uint16_t col = (i == sel) ? COLOR_YELLOW : COLOR_WHITE;
+        if (i == sel) gfx_text(BOX_X + 12, y, ">", COLOR_YELLOW);
+        gfx_text(x, y, label, col);
     }
     gfx_flush();
 }
@@ -134,10 +167,12 @@ MenuAction menu_open(bool in_game) {
                                      break;
                 case IT_CONTROLS:    show_controls(); break;
                 case IT_RECALIBRATE: g_core.joystick.calibrate_center();
-                                     gfx_clear(color_black);
-                                     gfx_text(60, 110, T(STR_RECALIBRATE), color_yellow);
+                                     gfx_clear(COLOR_BLACK);
+                                     menu_frame(T(STR_MENU));
+                                     gfx_text(BOX_X + 12, BOX_Y + 40, T(STR_RECALIBRATE), COLOR_YELLOW);
                                      gfx_flush(); vTaskDelay(pdMS_TO_TICKS(600)); break;
-                case IT_LOADER:      return_to_loader(); break;
+                case IT_LOADER:      if (confirm_return_to_loader()) return_to_loader();
+                                     break;
                 default: break;
             }
         }

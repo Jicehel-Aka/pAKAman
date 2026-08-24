@@ -18,6 +18,19 @@ constexpr int SCREEN_W = 320;
 constexpr int SCREEN_H = 240;
 
 // ---------------------------------------------------------------------------
+//  CADENCE DE JEU — SOURCE UNIQUE DE VÉRITÉ
+// ---------------------------------------------------------------------------
+// app_main.cpp fixe FRAME_US = 30000 (~33.33 FPS). Toutes les durées "en
+// ticks" du jeu DOIVENT être dérivées de GAME_FPS via SEC_TO_TICKS() plutôt
+// que d'un nombre codé en dur : historiquement certaines constantes avaient
+// été calculées pour 60 FPS (schedule scatter/chase, sortie fantômes,
+// frightened) et d'autres pour 40 FPS (fruits, game over), ce qui déphasait
+// silencieusement le tuning du jeu par rapport à la cadence réelle de la
+// boucle. Si FRAME_US change un jour, seule cette ligne doit être modifiée.
+constexpr float GAME_FPS = 1000000.0f / 30000.0f;   // doit rester synchro avec FRAME_US (app_main.cpp)
+constexpr int SEC_TO_TICKS(float seconds) { return (int)(seconds * GAME_FPS + 0.5f); }
+
+// ---------------------------------------------------------------------------
 //  GRILLE / LABYRINTHE
 // ---------------------------------------------------------------------------
 constexpr int TILE_SIZE  = 16;
@@ -51,13 +64,13 @@ constexpr int GHOST_SPEED_TUNNEL     = 1;   // dans les tunnels (~40 % arcade)
 constexpr int GHOST_SPEED_FRIGHTENED = 1;   // mode Frightened (~50 % arcade)
 constexpr int GHOST_SPEED_EYES       = 4;   // yeux, retour maison
 
-// Timings sortie de la ghost house
-constexpr int GHOST_RELEASE_INTERVAL_TICKS = 3 * 60;   // 3 s
-constexpr int FIRST_GHOST_RELEASE_TICKS    = 5 * 60;   // 5 s
+// Timings sortie de la ghost house (durées réelles en secondes, cf. GAME_FPS)
+constexpr int GHOST_RELEASE_INTERVAL_TICKS = SEC_TO_TICKS(3.0f);   // 3 s
+constexpr int FIRST_GHOST_RELEASE_TICKS    = SEC_TO_TICKS(5.0f);   // 5 s
 
 // Mode Frightened
-constexpr int FRIGHTENED_DURATION_TICKS    = 360;   // 6 s
-constexpr int FRIGHTENED_BLINK_START_TICKS = 120;   // clignotement sur les 2 dernières s
+constexpr int FRIGHTENED_DURATION_TICKS    = SEC_TO_TICKS(6.0f);   // 6 s
+constexpr int FRIGHTENED_BLINK_START_TICKS = SEC_TO_TICKS(2.0f);   // clignotement sur les 2 dernières s
 
 // ---------------------------------------------------------------------------
 //  SCORES

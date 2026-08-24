@@ -20,6 +20,7 @@ Authors:
  - Jean-Marie Papillon
 */
 #include "gb_audio_player.h"
+#include "gb_err.h"
 #include "esp_vfs_fat.h"
 
 #pragma once
@@ -45,15 +46,17 @@ typedef struct {
 //! base object for audio
 class gb_audio_track_wav : public gb_audio_track_base {
     public:
-        //! start playing WAV sound from file on sdcard
+        //! start playing WAV from file on SD. Path must be under MOUNT_POINT, no "..".
+        //! @return GB_OK, GB_ERR_PARAM, GB_ERR_NOT_MOUNTED, GB_ERR_IO, GB_ERR_FORMAT, GB_ERR_OVERFLOW
     int play_wav( const char* pc_file_name );
-        //! start playing WAV sound from ESP memory ( WAV embedded as ressource into ESP RAM/ROM memory )
+        //! start playing WAV from ESP memory. Pointer must remain valid until stop.
+        //! @return GB_OK, GB_ERR_PARAM, GB_ERR_FORMAT, GB_ERR_OVERFLOW
     int play_wav( const uint8_t * pi8_wav_file );
-	        //! start playing samples from ESP mem, located at address pi16_sample, count of sample=sample_count ( sample_count = data size/2 )
+	        //! start playing raw 16-bit samples from RAM. @return GB_OK or GB_ERR_PARAM
 	int play_raw( const int16_t* pi16_sample, size_t sample_count );
-        //! buffer fill callback 
+        //! buffer fill callback. @return GB_OK if playing, GB_ERR if idle
     int play_callback( int16_t* pi16_buffer, uint16_t u16_sample_count );
-	        //! tool export WAV file to header file
+	        //! export WAV file to a C header on SD. Same path rules as play_wav.
 	int convert_wav_to_header( const char* pc_file_name_in, const char* pc_file_name_out );
         // stop sound
     void stop_playing();

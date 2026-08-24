@@ -29,7 +29,7 @@ extern "C" {
 #define GB_AUDIO_BUFFER_FIFO_COUNT      4   // count of audio buffer fifo
 #define GB_AUDIO_BUFFER_SAMPLE_COUNT    512 // 16b audio buffers (size in bytes = 2*GB_AUDIO_BUFFER_SAMPLE_COUNT )
 
-    //! initialise audio codec and I2S bus
+    //! initialise audio codec and I2S bus. @return GB_OK (ESP_ERROR_CHECK aborts on fatal I2S fail)
 int gb_ll_audio_init();
     //! push audio buffer for playing
 void gb_ll_audio_push_buffer( const int16_t* pi16_audio_buffer );

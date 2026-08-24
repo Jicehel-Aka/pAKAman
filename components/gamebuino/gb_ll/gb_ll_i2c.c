@@ -22,6 +22,10 @@ Authors:
 #include "driver/i2c_master.h"
 #include "gb_common.h"
 #include "gb_ll_system.h"
+#include "gb_err.h"
+#include "esp_log.h"
+
+static const char *TAG = "gb_i2c";
 
     // hold current expander status to allow change a bit without reloading all
 uint8_t u8_expander_out_data = 0;
@@ -62,15 +66,21 @@ i2c_master_dev_handle_t dev_handle_audio;
 
 void gb_ll_expander_write(uint8_t u8_data)
 {
-    u8_expander_out_data = u8_data |= EXPANDER_KEY; // Key inputs must be stay HIGH
+    if (!dev_handle0) {
+        ESP_LOGE(TAG, "expander_write: I2C not initialized (GB_ERR_IO)");
+        return;
+    }
+    u8_expander_out_data = u8_data |= EXPANDER_KEY; // Key inputs must stay HIGH
     esp_err_t ret = i2c_master_transmit(dev_handle0, &u8_expander_out_data, sizeof(u8_expander_out_data), 100);
-    if(ret)
-        printf( "I2C wite return %d\n", ret );
+    if (ret != ESP_OK)
+        ESP_LOGE(TAG, "expander write failed %s", esp_err_to_name(ret));
 }
 
 
 uint16_t gb_ll_expander_read()
 {
+    if (!dev_handle0 || !dev_handle1)
+        return 0;
     uint8_t u8_d1 = 0x55;
     esp_err_t ret1 = i2c_master_receive(dev_handle1, &u8_d1, sizeof(u8_d1), 100);
     uint8_t u8_d0 = 0x55;
@@ -80,59 +90,59 @@ uint16_t gb_ll_expander_read()
     u16_data ^= EXPANDER_KEY;     // all key active low => active high
     if ( ret0 || ret1 )
     {
-        printf( "I2C read return %d %d\n", ret0, ret1 );
+        ESP_LOGE(TAG, "expander read failed %s %s", esp_err_to_name(ret0), esp_err_to_name(ret1));
         return 0;
     }
-//    printf( "I2C read return %d %d 0x%04X\n", ret0, ret1, u16_data );
     return u16_data;
 }
 
 
 void gb_ll_audio_amp_write(uint8_t u8_reg, uint8_t u8_data)
 {
+    if (!dev_handle_audio) {
+        ESP_LOGE(TAG, "amp write: I2C not initialized");
+        return;
+    }
     uint8_t u8_datareg[2] = { u8_reg, u8_data };
-//    u8_data |= EXPANDER_KEY; // Key inputs must be stay HIGH
     esp_err_t ret = i2c_master_transmit( dev_handle_audio, u8_datareg, sizeof(u8_datareg), 100 );
-    if(ret)
-        printf( "I2C Audio wite return %d\n", ret );
+    if (ret != ESP_OK)
+        ESP_LOGE(TAG, "amp write failed %s", esp_err_to_name(ret));
 }
 
 uint8_t gb_ll_audio_amp_read( uint8_t u8_reg )
 {
     uint8_t u8_data = 0;
+    if (!dev_handle_audio)
+        return 0;
     esp_err_t ret = i2c_master_transmit_receive( dev_handle_audio, &u8_reg, sizeof(u8_reg), &u8_data, sizeof(u8_data), 100 );
     if ( ret )
     {
-        printf( "ERR : I2C Audio read return %d\n", ret );
+        ESP_LOGE(TAG, "amp read failed %s", esp_err_to_name(ret));
         return 0;
     }
-    printf( "I2C Audio read reg 0x%02X return 0x%02x\n", u8_reg, u8_data );
     return u8_data;
 }
 
 int gb_ll_i2c_init()
 {
-    printf( "Initialize I2C master bus... " ); 
+    ESP_LOGI(TAG, "Initialize I2C master bus");
     esp_err_t ret = i2c_new_master_bus(&i2c_mst_config, &bus_handle);
-    if(ret)
-        printf( "i2c_new_master_bus return %d\n", ret );
+    if (ret != ESP_OK)
+        ESP_LOGE(TAG, "i2c_new_master_bus %s", esp_err_to_name(ret));
 
-//    printf( "Initialize I2C Slave 0... " );
     esp_err_t ret0 = i2c_master_bus_add_device(bus_handle, &dev_cfg0, &dev_handle0);
     if ( ret0 )
-        printf( "i2c_master_bus_add_device return %d\n", ret0 );
-    
-//    printf( "Initialize I2C Slave 1... " );
-    esp_err_t ret1 = i2c_master_bus_add_device(bus_handle, &dev_cfg1, &dev_handle1);
-    if ( ret1) 
-        printf( "i2c_master_bus_add_device return %d\n", ret1 );
+        ESP_LOGE(TAG, "add expander0 %s", esp_err_to_name(ret0));
 
-//    printf( "Initialize I2C Audio... " );
+    esp_err_t ret1 = i2c_master_bus_add_device(bus_handle, &dev_cfg1, &dev_handle1);
+    if ( ret1)
+        ESP_LOGE(TAG, "add expander1 %s", esp_err_to_name(ret1));
+
     esp_err_t ret2 = i2c_master_bus_add_device(bus_handle, &dev_cfg_audio, &dev_handle_audio);
     if (ret2)
-        printf( "i2c_master_bus_add_device return %d\n", ret2 );
+        ESP_LOGE(TAG, "add audio amp %s", esp_err_to_name(ret2));
 
     if ( ret | ret0 | ret1 | ret2 )
-        return -1; // fail
-    return 0;
+        return GB_ERR_IO;
+    return GB_OK;
 }

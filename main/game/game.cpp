@@ -37,11 +37,48 @@ float g_camera_y = 0.0f;
 
 static void init_ghost_schedule(GameState& g)
 {
-    g.schedule.phase_count   = 4;
-    g.schedule.phases[0]     = { GlobalGhostMode::Scatter, 7 * 60 };
-    g.schedule.phases[1]     = { GlobalGhostMode::Chase,   20 * 60 };
-    g.schedule.phases[2]     = { GlobalGhostMode::Scatter, 7 * 60 };
-    g.schedule.phases[3]     = { GlobalGhostMode::Chase,   9999 * 60 };
+    // Durees exprimees en secondes reelles puis converties via GAME_FPS
+    // (au lieu de "7 * 60" qui supposait a tort une boucle a 60 FPS).
+    //
+    // Le nombre de phases et leurs durees varient par palier de niveau,
+    // comme dans l'arcade original : plus on progresse, plus les phases
+    // Scatter raccourcissent et plus la phase Chase finale (avant le
+    // Chase permanent) s'allonge - c'est ce qui donne la sensation de
+    // fantomes de plus en plus agressifs. Le dernier palier a une phase
+    // Scatter quasi instantanee (1 tick) avant le Chase permanent.
+    int L = g.level; if (L < 1) L = 1;
+
+    if (L == 1) {
+        g.schedule.phase_count = 8;
+        g.schedule.phases[0] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(7.0f) };
+        g.schedule.phases[1] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[2] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(7.0f) };
+        g.schedule.phases[3] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[4] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(5.0f) };
+        g.schedule.phases[5] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[6] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(5.0f) };
+        g.schedule.phases[7] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(9999.0f) };
+    } else if (L >= 2 && L <= 4) {
+        g.schedule.phase_count = 8;
+        g.schedule.phases[0] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(7.0f) };
+        g.schedule.phases[1] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[2] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(7.0f) };
+        g.schedule.phases[3] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[4] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(5.0f) };
+        g.schedule.phases[5] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(1033.0f) };
+        g.schedule.phases[6] = { GlobalGhostMode::Scatter, 1 };   // quasi instantane
+        g.schedule.phases[7] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(9999.0f) };
+    } else {   // niveau 5+
+        g.schedule.phase_count = 8;
+        g.schedule.phases[0] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(5.0f) };
+        g.schedule.phases[1] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[2] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(5.0f) };
+        g.schedule.phases[3] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(20.0f) };
+        g.schedule.phases[4] = { GlobalGhostMode::Scatter, SEC_TO_TICKS(5.0f) };
+        g.schedule.phases[5] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(1037.0f) };
+        g.schedule.phases[6] = { GlobalGhostMode::Scatter, 1 };   // quasi instantane
+        g.schedule.phases[7] = { GlobalGhostMode::Chase,   SEC_TO_TICKS(9999.0f) };
+    }
 
     g.current_phase_index    = 0;
     g.phase_timer_ticks      = g.schedule.phases[0].duration_ticks;
@@ -61,8 +98,26 @@ static void update_modes(GameState& g)
             g.global_mode        = phase.mode;
             g.phase_timer_ticks  = phase.duration_ticks;
 
-            for (auto& ghost : g.ghosts)
+            for (auto& ghost : g.ghosts) {
                 ghost.reverse_direction();
+
+                // BUG CORRIGE : ghost.mode n'etait synchronise sur g.global_mode
+                // qu'au moment ou le fantome quittait la maison (ghost.cpp,
+                // HouseState::Leaving -> Outside). Un fantome deja dehors
+                // gardait donc pour toujours le mode Scatter/Chase qu'il avait
+                // en sortant : seul le demi-tour (reverse_direction ci-dessus)
+                // etait visible aux changements de phase suivants, la cible
+                // de poursuite/fuite ne changeait plus jamais. On ne touche
+                // pas aux fantomes Frightened/Eaten, qui gerent leur propre
+                // sortie de mode (cf. on_end_frightened / retour maison).
+                if (ghost.mode != Ghost::Mode::Frightened &&
+                    ghost.mode != Ghost::Mode::Eaten)
+                {
+                    ghost.mode = (g.global_mode == GlobalGhostMode::Scatter)
+                                 ? Ghost::Mode::Scatter
+                                 : Ghost::Mode::Chase;
+                }
+            }
         }
     }
 }
@@ -232,10 +287,10 @@ static void update_ghost_door(GameState& g)
     switch (g.ghostDoorState)
     {
         case GameState::DoorState::Closed:
-            if (g.elapsed_ticks >= 2 * 60) {
+            if (g.elapsed_ticks >= SEC_TO_TICKS(2.0f)) {
                 g.ghostDoorState      = GameState::DoorState::Opening;
                 g.maze.setGhostDoor(TileType::GhostDoorOpening);
-                g.ghostDoorTimer_ticks = g.elapsed_ticks + 30;
+                g.ghostDoorTimer_ticks = g.elapsed_ticks + SEC_TO_TICKS(0.5f);
             }
             break;
 
@@ -322,6 +377,31 @@ static void apply_level_difficulty(GameState& g)
     // Les fantomes sortent de plus en plus vite de la maison.
     g.ghostReleaseInterval_ticks = GHOST_RELEASE_INTERVAL_TICKS - (L - 1) * 20;
     if (g.ghostReleaseInterval_ticks < 45) g.ghostReleaseInterval_ticks = 45;
+
+    // --- Cruise Elroy (Blinky accelere quand il reste peu de pastilles) ---
+    // Le labyrinthe de pAKAman n'a pas le meme total de pastilles que
+    // l'arcade original (240) : les seuils sont donc exprimes en
+    // pourcentage du total du niveau plutot que recopies tels quels,
+    // avec un plancher pour rester sensible sur un petit labyrinthe.
+    int total = g.level_total_pellets;
+    g.elroy1_dots_left = total / 6;   if (g.elroy1_dots_left < 8) g.elroy1_dots_left = 8;
+    g.elroy2_dots_left = total / 14;  if (g.elroy2_dots_left < 4) g.elroy2_dots_left = 4;
+
+    // --- Sortie sur compteur de pastilles (en plus du minuteur) ---
+    // Approximation du "dot counter" arcade : Blinky/Pinky sortent tout de
+    // suite (seuil 0, le minuteur seul les regit deja) ; Inky et Clyde
+    // attendent que Pac-Man ait mange un certain nombre de pastilles,
+    // seuil qui diminue avec le niveau (a partir du niveau ou l'arcade
+    // original les fait sortir des le debut).
+    for (auto& gh : g.ghosts) {
+        switch (gh.id) {
+            case 0: gh.dot_release_threshold = 0; break;                         // Blinky
+            case 1: gh.dot_release_threshold = 0; break;                         // Pinky
+            case 2: gh.dot_release_threshold = (L == 1) ? 30 : 0; break;         // Inky
+            case 3: gh.dot_release_threshold = (L == 1) ? 60 : (L == 2 ? 50 : 0); break; // Clyde
+            default: gh.dot_release_threshold = 0; break;
+        }
+    }
 }
 
 static void reset_level_full(GameState& g)
@@ -335,6 +415,7 @@ static void reset_level_full(GameState& g)
 
     reset_ghosts(g);
     init_ghost_schedule(g);
+    g.level_total_pellets = g.maze.pellet_count;   // AVANT apply_level_difficulty (seuils Elroy)
     apply_level_difficulty(g);      // frightened + cadence de sortie selon le niveau
 
     int t = FIRST_GHOST_RELEASE_TICKS;
@@ -386,6 +467,7 @@ void game_init(GameState& g)
     }
 
     init_ghost_schedule(g);
+    g.level_total_pellets = g.maze.pellet_count;   // AVANT apply_level_difficulty (seuils Elroy)
     apply_level_difficulty(g);      // niveau 1 : difficulte de base
 
     int t = FIRST_GHOST_RELEASE_TICKS;
@@ -466,7 +548,7 @@ static void update_state_pacman_dying(GameState& g)
     }
 
     if (--g.lives <= 0) {
-        g.gameover_timer             = 90;   // ~2.2s à 40 FPS — attend la fin du son
+        g.gameover_timer             = SEC_TO_TICKS(2.2f);   // attend la fin du son de mort
         g.gameover_waiting_for_input = true;
         g.state = GameState::State::GameOver;
         return;
@@ -497,14 +579,41 @@ static void update_state_playing(GameState& g)
     }
 
     if (g.maze.pellet_count == 0) {
+        int completed_level = g.level;
         ++g.level;
-        reset_level_full(g);
+        if (level_has_intermission(completed_level)) {
+            // On differe le chargement du niveau suivant : app_main affiche
+            // d'abord l'intermede (ui/intermission.*), puis appelle
+            // game_advance_to_next_level() pour continuer exactement comme
+            // avant (reset_level_full).
+            g.last_completed_level = completed_level;
+            g.state = GameState::State::LevelComplete;
+        } else {
+            reset_level_full(g);
+        }
     }
+}
+
+bool level_has_intermission(int completed_level)
+{
+    // Cadence inspiree de l'arcade original (intermedes apres les niveaux
+    // 2, 5, 9, puis tous les 4 niveaux) - adaptee a une histoire courte et
+    // recurrente plutot qu'aux 3 cutscenes fixes de l'original.
+    if (completed_level == 2 || completed_level == 5 || completed_level == 9)
+        return true;
+    if (completed_level > 9 && (completed_level - 9) % 4 == 0)
+        return true;
+    return false;
+}
+
+void game_advance_to_next_level(GameState& g)
+{
+    reset_level_full(g);
 }
 
 // GameOver : aucune logique ici.
 // La transition vers highscores_submit puis TitleScreen
-// est entièrement gérée par task_game.cpp → state_gameover().
+// est entièrement gérée par app_main.cpp (state GameOver -> Highscores).
 static void update_state_gameover(GameState& /*g*/)
 {
     // intentionnellement vide
@@ -527,9 +636,9 @@ void game_update(GameState& g)
         case GameState::State::Playing:       update_state_playing(g);        break;
         case GameState::State::GameOver:      update_state_gameover(g);       break;
 
-        // États gérés par task_game.cpp
+        // États gérés par app_main.cpp (ecrans modaux / machine d'etats haut niveau)
         case GameState::State::TitleScreen:
-        case GameState::State::LevelComplete:
+        case GameState::State::LevelComplete:   // affichage intermede, cf. ui/intermission.*
         case GameState::State::Paused:
         case GameState::State::Options:
         case GameState::State::OptionsMenu:

@@ -24,31 +24,30 @@ Authors:
 #include <stdint.h>
 #include "esp_timer.h"
 
-    // called by gb_ll in "c"
 void gb_delay_ms(uint32_t u32_ms)
 {
-    vTaskDelay( u32_ms / portTICK_PERIOD_MS);
+    TickType_t ticks = pdMS_TO_TICKS(u32_ms);
+    if (ticks < 1)
+        ticks = 1;
+    vTaskDelay(ticks);
 }
 
-    // called by gb_ll in "c"
 IRAM_ATTR uint32_t gb_get_millis()
 {
-    return xTaskGetTickCount()/portTICK_PERIOD_MS;
-} 
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
 
-#include "esp_timer.h"
 void gb_delay_us(int64_t u32_us)
 {
     int64_t start_us = esp_timer_get_time();
-    while ( (esp_timer_get_time() -start_us ) < u32_us ) 
+    while ( (esp_timer_get_time() -start_us ) < u32_us )
         ;
 }
 
-    // called by gb_ll in "c"
 IRAM_ATTR int64_t gb_get_micros()
 {
     return esp_timer_get_time();
-} 
+}
 
 #include <esp_pm.h>
 

@@ -23,6 +23,7 @@ Authors:
 #include "gb_audio_player.h"
 #include "gb_ll_audio.h"
 #include "gb_ll_system.h"
+#include "gb_err.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,33 +80,33 @@ float gb_audio_track_base::get_track_volume()
 int gb_audio_player::add_track( gb_audio_track_base* track, float f32_volume )
 {
     if(!track)
-        return -1; // fail
-    del_track(track); // secure : only one instance of each track to avoid multiple call to play_callback() in each loop
+        return GB_ERR_PARAM;
+    del_track(track); // only one instance of each track
     for ( int i = 0 ; i < count_of(tracks) ; i++ )
     {
-        if ( tracks[i] == 0 ) // not yet populated
+        if ( tracks[i] == 0 )
         {
             tracks[i] = track;
             tracks[i]->set_track_volume(f32_volume);
-            return 0; // success
+            return GB_OK;
         }
     }
-    return -1; // fail, no more space
+    return GB_ERR_NO_SPACE;
 }
 
 int gb_audio_player::del_track( gb_audio_track_base* track )
 {
     if(!track)
-        return -1; // fail
+        return GB_ERR_PARAM;
     for ( int i = 0 ; i < count_of(tracks) ; i++ )
     {
-        if ( tracks[i] == track ) // populated with this track
+        if ( tracks[i] == track )
         {
-            tracks[i] = 0;  // delete
-            return 0; // success
+            tracks[i] = 0;
+            return GB_OK;
         }
     }
-    return -1; // fail, no more space
+    return GB_ERR_NOT_FOUND;
 }
 
 void gb_audio_player::pool()

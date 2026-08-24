@@ -39,6 +39,7 @@
 #include "ui/menu.h"
 #include "ui/title_screen.h"
 #include "ui/highscores.h"
+#include "ui/intermission.h"
 
 // Jeu
 #include "game/config.h"
@@ -61,15 +62,70 @@ inline void checkReturnToLoader(bool run_held, bool menu_held) {
         if (combo_start == 0) {
             combo_start = now;                     // début du maintien
         } else if (now - combo_start >= 500) {     // tenu 500 ms
-            const esp_partition_t* loader = esp_partition_find_first(
-                ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, nullptr);
-            if (loader) {
-                esp_ota_set_boot_partition(loader);
-                esp_restart();
+            combo_start = 0;   // rearme avant l'ecran modal (evite une reboucle)
+            // Confirmation obligatoire : ce combo est actif meme en pleine
+            // partie, un appui accidentel ne doit pas faire perdre la partie
+            // en cours sans avertissement (meme garde-fou que l'entree de
+            // menu equivalente, voir ui/menu.cpp).
+            if (confirm_return_to_loader()) {
+                const esp_partition_t* loader = esp_partition_find_first(
+                    ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, nullptr);
+                if (loader) {
+                    esp_ota_set_boot_partition(loader);
+                    esp_restart();
+                }
             }
         }
     } else {
         combo_start = 0;                           // réarmement
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Extinction : RUN seul (aucune autre touche), maintenu 1,5 s.
+// ---------------------------------------------------------------------------
+// Trois usages differents de RUN doivent cohabiter sans se marcher dessus :
+//   - appui court sur RUN seul  -> pause (gere plus bas, sur le front k.pressed)
+//   - RUN + MENU maintenus      -> retour au loader (checkReturnToLoader ci-dessus)
+//   - RUN seul MAINTENU longtemps, aucune autre touche en meme temps -> extinction
+//
+// Flag explicite, ACTIVE PAR DEFAUT (true) : la fonctionnalite d'extinction
+// sur appui long est le comportement attendu de base. Le flag existe pour
+// pouvoir la desactiver ponctuellement (debug, test sur banc ou RUN est
+// souvent maintenu par erreur) sans avoir a commenter le code.
+static bool g_power_off_on_long_run = true;
+
+// "raw_buttons" doit valoir EXACTEMENT EXPANDER_KEY_RUN (aucun autre bit) pour
+// armer le minuteur : si MENU (ou toute autre touche) est aussi enfoncee, on
+// laisse la main a checkReturnToLoader() plutot que d'eteindre l'appareil.
+// Seuil volontairement plus long (1500 ms) que le simple appui long (500 ms)
+// utilise ailleurs (menu, capture), pour eviter une extinction accidentelle
+// juste parce que le joueur a garde RUN enfonce un peu apres avoir mis pause.
+inline void checkPowerOff(uint32_t raw_buttons) {
+    static uint32_t hold_start = 0;
+
+    if (!g_power_off_on_long_run) { hold_start = 0; return; }
+
+    uint32_t now = esp_timer_get_time() / 1000;   // en ms
+
+    bool run_alone = (raw_buttons == EXPANDER_KEY_RUN);
+
+    if (run_alone) {
+        if (hold_start == 0) {
+            hold_start = now;
+        } else if (now - hold_start >= 1500) {
+            hold_start = 0;
+            // Retour visuel avant extinction (best-effort : le materiel peut
+            // couper l'alimentation avant que l'utilisateur n'ait le temps
+            // de lire, mais ça ne coûte rien de l'afficher).
+            gfx_clear(COLOR_BLACK);
+            gfx_text_center(110, "Extinction...", COLOR_YELLOW);
+            gfx_flush();
+            vTaskDelay(pdMS_TO_TICKS(150));
+            g_core.power_down();
+        }
+    } else {
+        hold_start = 0;   // reste enfonce mais accompagne d'une autre touche, ou relache
     }
 }
 
@@ -90,17 +146,58 @@ static bool is_in_game(const GameState& g) {
 
 extern "C" void app_main(void) {
     // 1) Materiel : tout passe par le composant standard.
-    g_core.init();
+    //    Depuis la mise a jour du composant, init() retourne un code d'erreur
+    //    documente (gb_err.h) au lieu de void : ADC/I2C/expander/audio sont
+    //    critiques (retour anticipe si l'un d'eux echoue - dans ce cas le
+    //    LCD n'est meme pas initialise, cf. gb_core.cpp) ; seul l'echec SD
+    //    est non-fatal et deja gere en interne (log + poursuite sans carte).
+    int core_err = g_core.init();
+    if (core_err != GB_OK) {
+        // Echec materiel critique (I2C/ADC/expander/ampli audio). On ne peut
+        // pas supposer que le LCD est utilisable (gb_ll_lcd_init() n'a pas
+        // forcement ete atteint), mais on tente quand meme un affichage en
+        // best-effort : mieux vaut un ecran fige explicite qu'un comportement
+        // indefini si on laissait le jeu demarrer sur un bus casse.
+        printf("app_main: g_core.init() ECHEC (code=%d) - materiel non fonctionnel\n", core_err);
+        gfx_init();
+        gfx_clear(COLOR_BLACK);
+        gfx_text_center(100, "Erreur materielle au demarrage", COLOR_YELLOW);
+        gfx_text_center(125, "Redemarrer / verifier la connectique", COLOR_WHITE);
+        gfx_flush();
+        for (;;) vTaskDelay(pdMS_TO_TICKS(1000));   // halte volontaire, pas de suite fiable possible
+    }
     gfx_init();
 
     // 2) Calibration joystick : g_core.init() a deja lu l'ADC, on fige le centre
     //    maintenant que le stick est au repos (sinon get_x()/get_y() decentres).
     g_core.joystick.calibrate_center();
 
+    // 2bis) Verification de la table i18n : une entree manquante (nullptr)
+    //       ne plante qu'au moment ou cette langue/chaine precise s'affiche ;
+    //       on prefere le detecter systematiquement des le boot (log serie).
+    i18n::check_table_integrity();
+
     // 3) SD + reglages persistants (langue + volume + musique) AVANT audio.
     bool sd_ok = sd_init();
     printf("app_main: sd_init() -> %s\n", sd_ok ? "true" : "false");
+    if (!sd_ok) {
+        // Avertissement visible (pas seulement un printf sur la console
+        // serie) : sans SD, scores/reglages/captures echoueront en silence
+        // pendant toute la session.
+        gfx_clear(COLOR_BLACK);
+        gfx_text_center(100, "Carte SD absente ou illisible", COLOR_YELLOW);
+        gfx_text_center(125, "Scores/reglages non sauvegardes", COLOR_WHITE);
+        gfx_flush();
+        vTaskDelay(pdMS_TO_TICKS(1800));
+    }
     settings_load();
+
+    // 3bis) Charge les tables JSON de la langue effective (par defaut ou
+    //       restauree par settings_load() ci-dessus) depuis la SD. Sans SD
+    //       ou fichiers absents, T() retombe sur la table C++ codee en dur
+    //       (aucune perte de fonctionnalite, juste pas de personnalisation
+    //       via SD).
+    i18n::reload_sd_tables();
 
     // 4) Audio (codec + voix SFX + tache de mixage) puis volume enregistre.
     audio_game_init();
@@ -145,6 +242,9 @@ extern "C" void app_main(void) {
 
 		// (a) Combo loader global.
 		checkReturnToLoader(run_held, menu_held);
+
+		// (a bis) Extinction : RUN seul, maintenu 1,5 s (cf. commentaire de la fonction).
+		checkPowerOff(s);
 
         // (b) MENU seul : court -> menu moderne ; long (>=500 ms) -> capture.
         if (k.MENU && !k.RUN) {
@@ -228,6 +328,13 @@ extern "C" void app_main(void) {
             highscores_show();
             if (k.pressed & EXPANDER_KEY_B)
                 g.state = GameState::State::TitleScreen;
+            break;
+
+        case GameState::State::LevelComplete:
+            // Intermede narratif (bloquant, comme menu_open()/highscores_submit()) :
+            // casse la monotonie entre deux niveaux, purement cosmetique.
+            intermission_show(g.last_completed_level);
+            game_advance_to_next_level(g);
             break;
 
         default:

@@ -38,16 +38,21 @@ class gb_buttons {
         uint16_t state();
             //! return buttons press event, cf gb_buttons::KEY_xxx
         uint16_t pressed();
-            //! return true if requested button presse, cf gb_buttons::KEY_xxx
+            //! return true if requested button pressed, cf gb_buttons::KEY_xxx
         bool pressed(gb_key key);
             //! return buttons release event, cf gb_buttons::KEY_xxx
         uint16_t released();
             //! return true if requested button released, cf gb_buttons::KEY_xxx
         bool released(gb_key key);
+            //! If true, holding RUN in update() calls power_off(). Default false
+            //! because games (pAKAman) use RUN for pause. Use gb_core::power_down()
+            //! for an explicit shutdown.
+        void set_run_power_off(bool enable);
 
     private:
         uint16_t u16_buttons {0};
         uint16_t u16_buttons_last {0};
+        bool run_power_off {false};
 
 };
 
@@ -106,8 +111,11 @@ class gb_core {
     public:
         gb_core();
         ~gb_core();
-            //! initialise gamebuino : screen, bus and peripherals
-        void init();
+            //! initialise gamebuino : screen, bus and peripherals.
+            //! @return GB_OK if I2C/ADC/audio inits succeeded. SD failure is
+            //!         logged but does not fail init (game can run without card).
+            //!         LCD has no return code (void driver).
+        int init();
             //! update status of buttons, joystick...
         void pool();
             //! buton management

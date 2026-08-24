@@ -96,6 +96,11 @@ struct GameState {
     bool gameover_waiting_for_input = false;
     int  gameover_timer             = 0;
 
+    // Intermede narratif entre deux niveaux (State::LevelComplete) : numero
+    // du niveau qui vient d'etre termine, fige au moment de la transition
+    // pour que l'ecran d'intermede (ui/intermission.*) sache quoi raconter.
+    int  last_completed_level       = 0;
+
     // -----------------------------------------------------------------------
     //  LABYRINTHE / ENTITÉS
     // -----------------------------------------------------------------------
@@ -128,6 +133,17 @@ struct GameState {
     bool extra_life_given          = false;   // vie bonus a 10 000 pts (une seule fois)
     int ghostEatScore              = GHOST_SCORE;   // doublé à chaque kill en chaîne
     int pacman_death_timer         = 0;
+
+    // -----------------------------------------------------------------------
+    //  COMPTEUR DE PASTILLES (sortie des fantomes + Cruise Elroy)
+    // -----------------------------------------------------------------------
+    // Total de pastilles au debut du niveau (fixe, contrairement a
+    // maze.pellet_count qui decroit). "Pastilles mangees" = difference.
+    int level_total_pellets   = 0;
+    // Seuils "pastilles RESTANTES" pour le mode Cruise Elroy de Blinky
+    // (recalcules par niveau, cf. apply_level_difficulty()).
+    int elroy1_dots_left      = 0;
+    int elroy2_dots_left      = 0;
 
     // -----------------------------------------------------------------------
     //  SÉQUENCE SCATTER / CHASE
@@ -201,3 +217,29 @@ void check_pacman_ghost_collision(GameState& g);
 void game_trigger_frightened(GameState& g);
 void update_floating_scores(GameState& g);
 void detect_portals(GameState& g);
+
+// Appelee par app_main apres l'intermede (State::LevelComplete) pour
+// effectivement charger le niveau suivant (equivalent de l'ancien appel
+// direct a reset_level_full(), desormais differe le temps de la scene).
+void game_advance_to_next_level(GameState& g);
+
+// True s'il faut afficher un intermede apres avoir termine "completed_level"
+// (cadence arcade : apres les niveaux 2, 5, 9, puis tous les 4 niveaux).
+bool level_has_intermission(int completed_level);
+
+// -----------------------------------------------------------------------
+//  Helpers pastilles (compteur de sortie des fantomes + Cruise Elroy)
+// -----------------------------------------------------------------------
+inline int game_dots_eaten(const GameState& g) {
+    return g.level_total_pellets - g.maze.pellet_count;
+}
+
+// 0 = normal, 1 = Elroy 1 (leger boost), 2 = Elroy 2 (boost fort).
+// Base sur les pastilles RESTANTES (comme dans l'arcade original), pas
+// mangees : Blinky accelere a mesure que le niveau se vide.
+inline int ghost_elroy_stage(const GameState& g) {
+    int left = g.maze.pellet_count;
+    if (left <= g.elroy2_dots_left) return 2;
+    if (left <= g.elroy1_dots_left) return 1;
+    return 0;
+}

@@ -28,7 +28,7 @@ Authors:
 #define PWM_LCD_GPIO            45
 #define PWM_LCD_FREQUENCY       50000 // must be > 20000 to avoid being audible
 #define PWM_LCD_LED_CHANNEL     0
-#define PWM_LCD_RESOLUTION      8
+#define PWM_LCD_RESOLUTION      8   /* LEDC duty is 0..255 (changelog 10-bit is outdated) */
 
 #define SDCARD_PIN_CMD 38
 #define SDCARD_PIN_CLK 2

@@ -42,7 +42,11 @@ void settings_save() {
                     (uint8_t)i18n::get_language(),
                     (uint8_t)volume,
                     (uint8_t)(g_audio_settings.music_enabled ? 1 : 0) };
-    fwrite(&b, 1, sizeof b, f);
+    size_t n = fwrite(&b, 1, sizeof b, f);
     fflush(f);
     fclose(f);
+    if (n != sizeof b) {
+        printf("settings: ECRITURE INCOMPLETE (%zu/%zu octets) - SD pleine ou retiree ?\n",
+               n, sizeof b);
+    }
 }

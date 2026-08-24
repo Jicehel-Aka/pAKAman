@@ -521,6 +521,19 @@ void Ghost::update(GameState& g)
     if (mode == Mode::Frightened) speed = speed_frightened;
     if (mode == Mode::Eaten)      speed = speed_eyes;
 
+    // Cruise Elroy : uniquement Blinky (id 0), et seulement quand il est
+    // dehors en mode normal (pas frightened/eaten). Accelere a mesure que
+    // le niveau se vide de pastilles - cf. ghost_elroy_stage(). Les
+    // pourcentages (+8%/+16%) sont volontairement plus doux que l'arcade
+    // original pour rester jouables sur les petites vitesses entieres de
+    // ce projet ; a ajuster si besoin dans config.h.
+    if (id == 0 && mode != Mode::Frightened && mode != Mode::Eaten)
+    {
+        int stage = ghost_elroy_stage(g);
+        if (stage == 1)      speed = speed + speed / 12;   // ~+8%
+        else if (stage == 2) speed = speed + speed / 6;    // ~+16%
+    }
+
     if (g.maze.tiles[row][col] == TileType::Tunnel)
         speed = speed_tunnel;
 
@@ -602,7 +615,8 @@ void Ghost::update(GameState& g)
     if (houseState == HouseState::Inside)
     {
         bool door_open   = (g.ghostDoorState == GameState::DoorState::Open);
-        bool can_release = (g.elapsed_ticks >= releaseTime_ticks);
+        bool can_release = (g.elapsed_ticks >= releaseTime_ticks) ||
+                            (game_dots_eaten(g) >= dot_release_threshold);
 
         // A) Porte fermée ou pas mon tour → mouvement interne
         if (!door_open || (door_open && !can_release))
@@ -737,6 +751,16 @@ void Ghost::update(GameState& g)
         if (mode == Mode::Frightened)
         {
             dir = chooseRandomDir(g, row, col, is_eyes);
+        }
+        else if (id == 0 && ghost_elroy_stage(g) > 0)
+        {
+            // Cruise Elroy : Blinky ignore les phases Scatter programmees et
+            // reste en poursuite active des que le seuil est atteint (comme
+            // dans l'arcade original). Le demi-tour aux changements de phase
+            // (reverse_direction) reste applique normalement ailleurs.
+            int tr, tc;
+            getChaseTarget(g, tr, tc);
+            dir = chooseDirectionTowardsTarget(g, row, col, tr, tc, is_eyes);
         }
         else if (mode == Mode::Scatter)
         {

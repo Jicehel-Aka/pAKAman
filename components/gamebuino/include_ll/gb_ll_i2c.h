@@ -26,15 +26,18 @@ extern "C" {
 
 extern uint8_t u8_expander_out_data;
 
-    // Initialize I2C for audio amplifier and expander
+/**
+ * Initialize I2C master + expander chips + audio amp devices.
+ * @return GB_OK or GB_ERR_IO
+ */
 int gb_ll_i2c_init();
-    //! write 8b low expander ( high byte will be never writed, keep all bits to 1 for correct key read )
+    //! write 8b low expander (key input bits are forced HIGH). No-op if I2C not inited.
 void gb_ll_expander_write(uint8_t u8_data);
-    //! return 16b expander inputs ( keys, cf EXPANDER_KEY_xxx )
+    //! return 16b expander inputs (keys, cf EXPANDER_KEY_xxx). 0 if I2C read fails.
 uint16_t gb_ll_expander_read();
-    //! Write register on audio amplifier
+    //! Write register on audio amplifier (logged on I2C error).
 void gb_ll_audio_amp_write(uint8_t u8_reg, uint8_t u8_data);
-    //! Read register from audio amplifier
+    //! Read register from audio amplifier. Returns 0 on I2C error.
 uint8_t gb_ll_audio_amp_read( uint8_t u8_reg );
 
 

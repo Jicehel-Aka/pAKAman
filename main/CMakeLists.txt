@@ -25,6 +25,7 @@ idf_component_register(
         "ui/highscores.cpp"
         "ui/title_screen.cpp"
         "ui/menu.cpp"
+        "ui/intermission.cpp"
     INCLUDE_DIRS
         "."
         "core"

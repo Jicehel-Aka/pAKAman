@@ -22,6 +22,7 @@ Authors:
 #include <stdint.h>
 #include "gb_ll_i2c.h"
 #include "gb_common.h"
+#include "gb_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "soc/soc_caps.h"
@@ -89,6 +90,6 @@ int gb_ll_expander_init()
     gb_delay_ms(100);
     gb_ll_expander_write( EXPANDER_OUT_ENA_3V3 | EXPANDER_LCD_nRESET  );
     gb_delay_ms(100);
-    return 0;
+    return GB_OK;
 }
 

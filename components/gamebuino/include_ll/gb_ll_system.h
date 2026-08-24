@@ -22,21 +22,22 @@ Authors:
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include <stdint.h>
 #include "freertos/FreeRTOS.h"
 
-    // nitialize timers
+/** Initialize timers / power-management. No return code (always best-effort). */
 void gb_ll_system_init();
 
-    //! called by gb_ll in "c"
+/** Block at least @p u32_ms milliseconds (FreeRTOS delay, min 1 tick). */
 void gb_delay_ms(uint32_t u32_ms);
 
-    //! called by gb_ll in "c"
+/** Monotonic time in milliseconds (esp_timer). Safe from ISR. */
 IRAM_ATTR uint32_t gb_get_millis();
 
-    //! delay in microseconds
+/** Busy-wait @p u32_us microseconds. Prefer gb_delay_ms for long waits. */
 void gb_delay_us(int64_t u32_us);
 
-    //! timer in microseconds
+/** Monotonic time in microseconds (esp_timer). Safe from ISR. */
 IRAM_ATTR int64_t gb_get_micros();
 
 #ifdef __cplusplus
